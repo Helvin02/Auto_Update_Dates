@@ -1,0 +1,110 @@
+function accessSheet() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("testing");
+  const lastRow = sheet.getLastRow();
+  const range = sheet.getRange(`O3:O${lastRow}`);
+  const values = range.getValues();
+
+
+// Finding the last file
+  let lastRowIndex = -1;
+  for (let i = values.length - 1; i>= 0; i--){
+    if (values[i][0] && values [i][0] !== ""){
+      lastRowIndex = i;
+      break;
+    }
+  }
+  if (lastRowIndex === -1){
+    console.log("No file");
+    return;
+  }
+
+  const lastRowPath = values[lastRowIndex][0];
+  console.log(`Last row path: ${lastRowPath}`);
+
+// Extracting date from path
+  const match = lastRowPath.match(/(\d{4}\/\d{2}\/\d{2})\/(\d{8})/);
+  if(!match){
+    console.log ("No date")
+    return;
+  }
+
+
+  const folderDateStr = match[1];
+  const fileDateStr = match[2];
+
+  //Parsing current date
+  const year = parseInt(fileDateStr.slice(0, 4));
+  const month = parseInt(fileDateStr.slice(4,6)) -1;
+  const day = parseInt(fileDateStr.slice(6,8));
+  const currentDate = new Date(year, month, day);
+  const currentDayOfWeek = Utilities.formatDate(currentDate, "Asia/Manila", "EEEE");
+
+  console.log(`Current date: ${Utilities.formatDate(currentDate, "Asia/Manila", "yyyy-MM-dd")} (${currentDayOfWeek})`);
+
+
+  const now = new Date();
+  const currentRealDay = Utilities.formatDate(now, "Asia/Manila", "EEEE");
+  const currentTime = Utilities.formatDate(now, "Asia/Manila", "HH:mm");
+
+  if (currentTime === "00:00"){
+    let daysToAdd = 0;
+
+    //Saturday
+    if (currentRealDay === "Saturday"){
+      console.log("Saturday (PHT)");
+      return;
+    }
+    
+    //Sunday
+    if (currentRealDay === "Sunday"){
+      if(currentDayOfWeek === "Friday"){
+        daysToAdd = 2;
+      }else {
+        daysToAdd = 1;
+      }
+    }
+    
+    if (["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].includes(currentRealDay)){
+      daysToAdd = 1;
+    }
+    if (daysToAdd > 0) {
+      // Calculate new date (automatically handles month/year boundaries)
+      const newDate = new Date(currentDate.getTime() + (daysToAdd * 24 * 60 * 60 * 1000));
+      const newDayOfWeek = Utilities.formatDate(newDate, "Asia/Manila", "EEEE");
+      
+      // Check if month or year changed
+      const oldMonth = Utilities.formatDate(currentDate, "Asia/Manila", "MM");
+      const oldYear = Utilities.formatDate(currentDate, "Asia/Manila", "yyyy");
+      const newMonth = Utilities.formatDate(newDate, "Asia/Manila", "MM");
+      const newYear = Utilities.formatDate(newDate, "Asia/Manila", "yyyy");
+      
+      if (newMonth !== oldMonth) {
+        const oldMonthName = Utilities.formatDate(currentDate, "Asia/Manila", "MMMM");
+        const newMonthName = Utilities.formatDate(newDate, "Asia/Manila", "MMMM");
+        console.log(`MONTH CHANGE: ${oldMonthName} → ${newMonthName}`);
+      }
+      
+      if (newYear !== oldYear) {
+        console.log(`YEAR CHANGE: ${oldYear} → ${newYear}`);
+      }
+      
+      // Format new date (handles month/year rollover automatically)
+      const folderDateNew = Utilities.formatDate(newDate, "Asia/Manila", "yyyy/MM/dd");
+      const fileDateNew = Utilities.formatDate(newDate, "Asia/Manila", "yyyyMMdd");
+      
+      // Create updated path
+      const updatedPath = lastRowPath.replace(folderDateStr, folderDateNew).replace(fileDateStr, fileDateNew);
+      
+      console.log(`Old date: ${Utilities.formatDate(currentDate, "Asia/Manila", "yyyy-MM-dd")} (${currentDayOfWeek})`);
+      console.log(`New date: ${Utilities.formatDate(newDate, "Asia/Manila", "yyyy-MM-dd")} (${newDayOfWeek})`);
+      console.log(`Updated path: ${updatedPath}`);
+      
+      // Update the sheet
+      const actualRowNumber = lastRowIndex + 3; // +3 because range starts at O3
+      sheet.getRange(`O${actualRowNumber}`).setValue(updatedPath);
+      console.log(`Updated row ${actualRowNumber} successfully`);
+  }
+}else{
+  console.log(`Current time ${currentTime}`);
+}
+}
